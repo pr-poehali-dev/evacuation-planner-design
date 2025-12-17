@@ -78,13 +78,27 @@ const SimulationPanel = ({
       const y = p.position?.y || 100 + Math.random() * 500;
       
       let path: { x: number; y: number }[] = [];
-      if (floor && floor.exits.length > 0) {
-        const nearestExit = floor.exits.reduce((closest, exit) => {
-          const dist = Math.hypot(exit.x - x, exit.y - y);
-          const closestDist = Math.hypot(closest.x - x, closest.y - y);
-          return dist < closestDist ? exit : closest;
-        });
-        path = calculateOptimalPath({ x, y }, nearestExit, floor);
+      if (floor) {
+        let targetExits = floor.exits;
+        
+        if (p.position?.floor === 1) {
+          targetExits = floor.exits.filter(e => e.type === 'exit');
+        } else {
+          targetExits = floor.exits.filter(e => e.type === 'stairs');
+        }
+        
+        if (targetExits.length > 0) {
+          const nearestExit = targetExits.reduce((closest, exit) => {
+            const dist = Math.hypot(exit.x - x, exit.y - y);
+            const closestDist = Math.hypot(closest.x - x, closest.y - y);
+            return dist < closestDist ? exit : closest;
+          });
+          path = calculateOptimalPath({ x, y }, nearestExit, floor);
+          
+          if (path.length === 0) {
+            path = [nearestExit];
+          }
+        }
       }
 
       return {
@@ -147,13 +161,29 @@ const SimulationPanel = ({
         let nearestExit = currentFloor.exits[0];
         let minDist = Infinity;
 
-        currentFloor.exits.forEach(exit => {
-          const dist = Math.hypot(exit.x - person.x, exit.y - person.y);
-          if (dist < minDist) {
-            minDist = dist;
-            nearestExit = exit;
-          }
-        });
+        if (person.floor === 1) {
+          const realExits = currentFloor.exits.filter(e => e.type === 'exit');
+          if (realExits.length === 0) return person;
+          
+          realExits.forEach(exit => {
+            const dist = Math.hypot(exit.x - person.x, exit.y - person.y);
+            if (dist < minDist) {
+              minDist = dist;
+              nearestExit = exit;
+            }
+          });
+        } else {
+          const stairs = currentFloor.exits.filter(e => e.type === 'stairs');
+          if (stairs.length === 0) return person;
+          
+          stairs.forEach(exit => {
+            const dist = Math.hypot(exit.x - person.x, exit.y - person.y);
+            if (dist < minDist) {
+              minDist = dist;
+              nearestExit = exit;
+            }
+          });
+        }
 
         if (!nearestExit) return person;
 
@@ -166,20 +196,29 @@ const SimulationPanel = ({
             return { ...person, evacuated: true, evacuationTime: simTime };
           } else if (nearestExit.type === 'stairs' && person.floor > 1) {
             const lowerFloor = floors.find(f => f.id === person.floor - 1);
-            if (lowerFloor && lowerFloor.exits.length > 0) {
-              const newPath = calculateOptimalPath(
-                { x: nearestExit.x, y: nearestExit.y },
-                lowerFloor.exits[0],
-                lowerFloor
-              );
-              return {
-                ...person,
-                floor: person.floor - 1,
-                x: nearestExit.x,
-                y: nearestExit.y,
-                path: newPath,
-                pathIndex: 0,
-              };
+            if (lowerFloor) {
+              const realExitsOnLowerFloor = lowerFloor.exits.filter(e => e.type === 'exit');
+              if (realExitsOnLowerFloor.length > 0) {
+                const targetExit = realExitsOnLowerFloor[0];
+                let newPath = calculateOptimalPath(
+                  { x: nearestExit.x, y: nearestExit.y },
+                  targetExit,
+                  lowerFloor
+                );
+                
+                if (newPath.length === 0) {
+                  newPath = [targetExit];
+                }
+                
+                return {
+                  ...person,
+                  floor: person.floor - 1,
+                  x: nearestExit.x,
+                  y: nearestExit.y,
+                  path: newPath,
+                  pathIndex: 0,
+                };
+              }
             }
           }
         }
@@ -194,15 +233,26 @@ const SimulationPanel = ({
             targetY = target.y;
 
             const distToTarget = Math.hypot(target.x - person.x, target.y - person.y);
-            if (distToTarget < 25) {
+            if (distToTarget < 35) {
               person.pathIndex++;
+              if (person.pathIndex >= person.path.length) {
+                targetX = nearestExit.x;
+                targetY = nearestExit.y;
+              }
             }
+          } else {
+            targetX = nearestExit.x;
+            targetY = nearestExit.y;
           }
         }
 
         const pathDx = targetX - person.x;
         const pathDy = targetY - person.y;
         const pathDist = Math.sqrt(pathDx * pathDx + pathDy * pathDy);
+
+        if (pathDist < 5) {
+          return person;
+        }
 
         const baseSpeed = 2 * (person.mobility / 100) * simSpeed;
         const panicFactor = 1 + (person.panicLevel / 100) * 0.5;
@@ -252,7 +302,12 @@ const SimulationPanel = ({
           
           const distToWall = Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
           
-          if (distToWall < 20) {
+          const nearDoor = currentFloor.doors.some(door => {
+            const distToDoor = Math.hypot(door.x - closestX, door.y - closestY);
+            return distToDoor < door.width / 2 + 50;
+          });
+          
+          if (distToWall < 20 && !nearDoor) {
             const repulsion = 100 / (distToWall + 1);
             fx += ((px - closestX) / (distToWall + 0.1)) * repulsion;
             fy += ((py - closestY) / (distToWall + 0.1)) * repulsion;
@@ -468,7 +523,7 @@ const SimulationPanel = ({
               Время: {simTime.toFixed(1)} сек • В точке сбора: {evacuatedCount} / {people.length}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              🟢 Точка сбора находится за пределами здания
+              🟢 Точка сбора • 🔴 Эвакуируются: {simPeople.filter(p => p.evacuated && !p.reachedAssembly).length} • 🟡 Внутри: {simPeople.filter(p => !p.evacuated).length}
             </p>
           </div>
           <div className="flex gap-2">

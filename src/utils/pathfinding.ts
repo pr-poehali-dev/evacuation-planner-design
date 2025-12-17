@@ -28,7 +28,11 @@ export const calculateOptimalPath = (
   startNode.f = startNode.g + startNode.h;
   openSet.push(startNode);
 
-  while (openSet.length > 0) {
+  let iterations = 0;
+  const maxIterations = 1000;
+
+  while (openSet.length > 0 && iterations < maxIterations) {
+    iterations++;
     openSet.sort((a, b) => a.f - b.f);
     const current = openSet.shift()!;
 
@@ -64,7 +68,7 @@ export const calculateOptimalPath = (
     }
   }
 
-  return [goal];
+  return [];
 };
 
 const heuristic = (a: { x: number; y: number }, b: { x: number; y: number }): number => {

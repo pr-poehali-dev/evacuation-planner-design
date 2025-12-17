@@ -136,6 +136,8 @@ const SimulationPanel = ({
         let fx = (dx / distance) * speed;
         let fy = (dy / distance) * speed;
 
+        const crowdForce = { x: 0, y: 0 };
+        let nearbyCount = 0;
         prevPeople.forEach(other => {
           if (other.id === person.id || other.evacuated || other.floor !== person.floor) return;
           
@@ -147,8 +149,19 @@ const SimulationPanel = ({
             const repulsionForce = 50 / (oDist * oDist);
             fx += (odx / oDist) * repulsionForce;
             fy += (ody / oDist) * repulsionForce;
+            nearbyCount++;
+          }
+
+          if (oDist < 80 && oDist > 0) {
+            crowdForce.x += other.vx * 0.1;
+            crowdForce.y += other.vy * 0.1;
           }
         });
+
+        if (nearbyCount > 3) {
+          fx += crowdForce.x;
+          fy += crowdForce.y;
+        }
 
         currentFloor.walls.forEach(wall => {
           const px = person.x;
@@ -230,10 +243,14 @@ const SimulationPanel = ({
     });
 
     const results: SimulationResult = {
+      id: `sim-${Date.now()}`,
+      timestamp: new Date().toISOString(),
       evacuationTime: simTime,
       bottlenecks: bottlenecks.sort((a, b) => b.density - a.density).slice(0, 5),
       exitStats: [],
       heatmapData,
+      peopleCount: people.length,
+      floorCount: floors.length,
     };
 
     onSimulationComplete(results);

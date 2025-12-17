@@ -7,6 +7,7 @@ import FloorEditor from '@/components/FloorEditor';
 import PeopleDatabase from '@/components/PeopleDatabase';
 import SimulationPanel from '@/components/SimulationPanel';
 import AnalyticsPanel from '@/components/AnalyticsPanel';
+import SimulationHistory from '@/components/SimulationHistory';
 
 export interface Person {
   id: string;
@@ -50,10 +51,14 @@ export interface Floor {
 }
 
 export interface SimulationResult {
+  id: string;
+  timestamp: string;
   evacuationTime: number;
   bottlenecks: { x: number; y: number; density: number; floor: number }[];
   exitStats: { exit: Exit; count: number; avgTime: number }[];
   heatmapData: number[][][];
+  peopleCount: number;
+  floorCount: number;
 }
 
 const Index = () => {
@@ -65,6 +70,7 @@ const Index = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResults, setSimulationResults] = useState<SimulationResult | null>(null);
+  const [simulationHistory, setSimulationHistory] = useState<SimulationResult[]>([]);
 
   const handleAddFloor = () => {
     const newFloorId = floors.length + 1;
@@ -158,7 +164,7 @@ const Index = () => {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="editor" className="flex items-center gap-2">
               <Icon name="Building" size={16} />
               <span>Редактор планов</span>
@@ -175,6 +181,10 @@ const Index = () => {
               <Icon name="BarChart3" size={16} />
               <span>Аналитика</span>
             </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <Icon name="History" size={16} />
+              <span>История</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="editor" className="space-y-4">
@@ -184,6 +194,8 @@ const Index = () => {
               setCurrentFloor={setCurrentFloor}
               setFloors={setFloors}
               onAddFloor={handleAddFloor}
+              people={people}
+              setPeople={setPeople}
             />
           </TabsContent>
 
@@ -197,12 +209,23 @@ const Index = () => {
               people={people}
               isSimulating={isSimulating}
               setIsSimulating={setIsSimulating}
-              onSimulationComplete={setSimulationResults}
+              onSimulationComplete={(result) => {
+                setSimulationResults(result);
+                setSimulationHistory(prev => [result, ...prev]);
+              }}
             />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
             <AnalyticsPanel results={simulationResults} people={people} />
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-4">
+            <SimulationHistory
+              history={simulationHistory}
+              onSelectSimulation={setSimulationResults}
+              onClearHistory={() => setSimulationHistory([])}
+            />
           </TabsContent>
         </Tabs>
       </div>

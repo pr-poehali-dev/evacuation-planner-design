@@ -5,7 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
-import { Floor, Wall, Door, Exit } from '@/pages/Index';
+import { Floor, Wall, Door, Exit, Person } from '@/pages/Index';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { floorTemplates } from '@/data/floorTemplates';
 
 interface FloorEditorProps {
   floors: Floor[];
@@ -13,16 +16,21 @@ interface FloorEditorProps {
   setCurrentFloor: (floor: number) => void;
   setFloors: (floors: Floor[]) => void;
   onAddFloor: () => void;
+  people: Person[];
+  setPeople: (people: Person[]) => void;
 }
 
-type Tool = 'wall' | 'door' | 'exit' | 'stairs' | 'erase';
+type Tool = 'wall' | 'door' | 'exit' | 'stairs' | 'erase' | 'person' | 'bulkPerson';
 
-const FloorEditor = ({ floors, currentFloor, setCurrentFloor, setFloors, onAddFloor }: FloorEditorProps) => {
+const FloorEditor = ({ floors, currentFloor, setCurrentFloor, setFloors, onAddFloor, people, setPeople }: FloorEditorProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedTool, setSelectedTool] = useState<Tool>('wall');
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [gridSize] = useState(20);
+  const [bulkCount, setBulkCount] = useState(10);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<HTMLImageElement | null>(null);
 
   const floor = floors.find(f => f.id === currentFloor);
 
@@ -90,6 +98,24 @@ const FloorEditor = ({ floors, currentFloor, setCurrentFloor, setFloors, onAddFl
       ctx.stroke();
     });
 
+    if (uploadedImage) {
+      ctx.globalAlpha = 0.3;
+      ctx.drawImage(uploadedImage, 0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1.0;
+    }
+
+    people.filter(p => p.position?.floor === currentFloor).forEach(person => {
+      if (person.position) {
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(person.position.x, person.position.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    });
+
     if (startPoint && isDrawing && selectedTool === 'wall') {
       ctx.strokeStyle = '#0EA5E955';
       ctx.lineWidth = 3;
@@ -114,6 +140,10 @@ const FloorEditor = ({ floors, currentFloor, setCurrentFloor, setFloors, onAddFl
       addDoor(coords);
     } else if (selectedTool === 'erase') {
       eraseAtPoint(coords);
+    } else if (selectedTool === 'person') {
+      addPerson(coords);
+    } else if (selectedTool === 'bulkPerson') {
+      addBulkPeople(coords);
     }
   };
 
@@ -197,6 +227,68 @@ const FloorEditor = ({ floors, currentFloor, setCurrentFloor, setFloors, onAddFl
     setFloors(updatedFloors);
   };
 
+  const addPerson = (coords: { x: number; y: number }) => {
+    const newPerson: Person = {
+      id: `person-${Date.now()}-${Math.random()}`,
+      name: `Человек ${people.length + 1}`,
+      age: 30,
+      mobility: 100,
+      panicLevel: 50,
+      volume: 70,
+      disabilities: [],
+      connections: [],
+      position: { x: coords.x, y: coords.y, floor: currentFloor },
+    };
+    setPeople([...people, newPerson]);
+    toast.success('Человек добавлен на карту');
+  };
+
+  const addBulkPeople = (coords: { x: number; y: number }) => {
+    const newPeople: Person[] = [];
+    const radius = 50;
+    for (let i = 0; i < bulkCount; i++) {
+      const angle = (i / bulkCount) * Math.PI * 2;
+      const x = coords.x + Math.cos(angle) * radius;
+      const y = coords.y + Math.sin(angle) * radius;
+      newPeople.push({
+        id: `person-${Date.now()}-${i}`,
+        name: `Человек ${people.length + i + 1}`,
+        age: 20 + Math.floor(Math.random() * 50),
+        mobility: 70 + Math.floor(Math.random() * 30),
+        panicLevel: 30 + Math.floor(Math.random() * 40),
+        volume: 50 + Math.floor(Math.random() * 50),
+        disabilities: [],
+        connections: [],
+        position: { x, y, floor: currentFloor },
+      });
+    }
+    setPeople([...people, ...newPeople]);
+    toast.success(`Добавлено ${bulkCount} человек`);
+  };
+
+  const handleLoadTemplate = (template: typeof floorTemplates[0]) => {
+    setFloors(template.floors);
+    setCurrentFloor(1);
+    setShowTemplateDialog(false);
+    toast.success(`Загружен шаблон: ${template.name}`);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        setUploadedImage(img);
+        toast.success('Изображение загружено. Обведите стены по контурам');
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleClearFloor = () => {
     const updatedFloors = floors.map(f =>
       f.id === currentFloor ? { ...f, walls: [], doors: [], exits: [] } : f
@@ -230,6 +322,54 @@ const FloorEditor = ({ floors, currentFloor, setCurrentFloor, setFloors, onAddFl
               <Icon name="Plus" size={16} />
             </Button>
           </div>
+        </div>
+
+        <div className="pt-4 border-t border-border space-y-2">
+          <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full">
+                <Icon name="Folder" className="mr-2" size={16} />
+                Шаблоны планов
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Выберите шаблон плана здания</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {floorTemplates.map((template, idx) => (
+                  <Card
+                    key={idx}
+                    className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                    onClick={() => handleLoadTemplate(template)}
+                  >
+                    <h3 className="font-semibold mb-1">{template.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {template.description}
+                    </p>
+                    <div className="text-xs text-muted-foreground">
+                      Этажей: {template.floors.length}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <label>
+            <Button variant="outline" className="w-full" asChild>
+              <span>
+                <Icon name="Image" className="mr-2" size={16} />
+                Загрузить план (изображение)
+              </span>
+            </Button>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+          </label>
         </div>
 
         <div>
@@ -268,6 +408,22 @@ const FloorEditor = ({ floors, currentFloor, setCurrentFloor, setFloors, onAddFl
               Лестница
             </Button>
             <Button
+              variant={selectedTool === 'person' ? 'default' : 'outline'}
+              onClick={() => setSelectedTool('person')}
+              className="justify-start"
+            >
+              <Icon name="User" className="mr-2" size={16} />
+              Человек
+            </Button>
+            <Button
+              variant={selectedTool === 'bulkPerson' ? 'default' : 'outline'}
+              onClick={() => setSelectedTool('bulkPerson')}
+              className="justify-start"
+            >
+              <Icon name="Users" className="mr-2" size={16} />
+              Группа
+            </Button>
+            <Button
               variant={selectedTool === 'erase' ? 'destructive' : 'outline'}
               onClick={() => setSelectedTool('erase')}
               className="justify-start col-span-2"
@@ -278,6 +434,21 @@ const FloorEditor = ({ floors, currentFloor, setCurrentFloor, setFloors, onAddFl
           </div>
         </div>
 
+        {selectedTool === 'bulkPerson' && (
+          <div>
+            <Label className="text-sm font-medium mb-2 block">
+              Количество людей: {bulkCount}
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={bulkCount}
+              onChange={(e) => setBulkCount(parseInt(e.target.value) || 10)}
+            />
+          </div>
+        )}
+
         <div className="pt-4 border-t border-border">
           <Button variant="outline" className="w-full" onClick={handleClearFloor}>
             <Icon name="Trash2" className="mr-2" size={16} />
@@ -287,7 +458,8 @@ const FloorEditor = ({ floors, currentFloor, setCurrentFloor, setFloors, onAddFl
 
         <div className="text-xs text-muted-foreground space-y-1 pt-2">
           <p>💡 Стена: клик → тянуть → отпустить</p>
-          <p>💡 Дверь/Выход: один клик</p>
+          <p>💡 Дверь/Выход/Человек: один клик</p>
+          <p>💡 Группа: клик для размещения людей</p>
           <p>💡 Ластик: клик на объекте</p>
         </div>
       </Card>

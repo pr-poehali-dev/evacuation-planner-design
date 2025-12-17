@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,22 +18,27 @@ interface DoorSettingsProps {
 }
 
 const DoorSettings = ({ door, isOpen, onClose, onSave }: DoorSettingsProps) => {
-  const [formData, setFormData] = useState<Door>(
-    door || {
-      x: 0,
-      y: 0,
-      width: 60,
-      capacity: 2,
-      orientation: 'horizontal',
-      throughput: 1.2,
-      direction: 'both',
-      autoOpen: false,
-      currentQueue: 0,
+  const [formData, setFormData] = useState<Door>({
+    x: 0,
+    y: 0,
+    width: 60,
+    capacity: 2,
+    orientation: 'horizontal',
+    throughput: 1.2,
+    direction: 'both',
+    autoOpen: false,
+    currentQueue: 0,
+  });
+
+  useEffect(() => {
+    if (door && isOpen) {
+      setFormData(door);
     }
-  );
+  }, [door, isOpen]);
 
   const handleSave = () => {
-    onSave(formData);
+    if (!door) return;
+    onSave({ ...door, ...formData });
     toast.success('Настройки двери сохранены');
     onClose();
   };

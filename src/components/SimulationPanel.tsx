@@ -142,7 +142,7 @@ const SimulationPanel = ({
         const dy = nearestExit.y - person.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < 15) {
+        if (distance < 30) {
           if (nearestExit.type === 'exit') {
             setEvacuatedCount(prev => prev + 1);
             return { ...person, evacuated: true, evacuationTime: simTime };

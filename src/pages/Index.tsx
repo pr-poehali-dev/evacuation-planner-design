@@ -19,6 +19,8 @@ export interface Person {
   disabilities: string[];
   connections: string[];
   position?: { x: number; y: number; floor: number };
+  groupId?: string;
+  isGroupLeader?: boolean;
 }
 
 export interface Wall {
@@ -29,11 +31,16 @@ export interface Wall {
 }
 
 export interface Door {
+  id?: string;
   x: number;
   y: number;
   width: number;
   capacity: number;
   orientation: 'horizontal' | 'vertical';
+  throughput?: number;
+  currentQueue?: number;
+  direction?: 'inward' | 'outward' | 'both';
+  autoOpen?: boolean;
 }
 
 export interface Exit {
@@ -50,6 +57,17 @@ export interface Floor {
   exits: Exit[];
 }
 
+export type EmergencyScenario = 'none' | 'fire' | 'smoke' | 'earthquake';
+
+export interface HazardZone {
+  x: number;
+  y: number;
+  radius: number;
+  floor: number;
+  intensity: number;
+  type: 'fire' | 'smoke';
+}
+
 export interface SimulationResult {
   id: string;
   timestamp: string;
@@ -58,6 +76,9 @@ export interface SimulationResult {
   exitStats: { exit: Exit; count: number; avgTime: number }[];
   heatmapData: number[][][];
   peopleCount: number;
+  scenario?: EmergencyScenario;
+  doorStats?: { door: Door; peopleThrough: number; avgWaitTime: number }[];
+  recommendations?: string[];
   floorCount: number;
 }
 

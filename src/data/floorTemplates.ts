@@ -18,12 +18,14 @@ export const floorTemplates: { name: string; description: string; floors: Floor[
           { x1: 700, y1: 400, x2: 700, y2: 600 },
         ],
         doors: [
-          { x: 500, y: 100, width: 60, capacity: 2, orientation: 'horizontal' },
-          { x: 300, y: 350, width: 60, capacity: 2, orientation: 'vertical' },
-          { x: 700, y: 350, width: 60, capacity: 2, orientation: 'vertical' },
+          { id: 'door-1', x: 500, y: 100, width: 60, capacity: 2, orientation: 'horizontal', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
+          { id: 'door-2', x: 300, y: 350, width: 60, capacity: 2, orientation: 'vertical', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
+          { id: 'door-3', x: 700, y: 350, width: 60, capacity: 2, orientation: 'vertical', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
         ],
         exits: [
-          { x: 500, y: 80, floor: 1, type: 'exit' },
+          { x: 500, y: 50, floor: 1, type: 'exit' },
+          { x: 80, y: 350, floor: 1, type: 'exit' },
+          { x: 920, y: 350, floor: 1, type: 'exit' },
           { x: 180, y: 200, floor: 1, type: 'stairs' },
           { x: 820, y: 200, floor: 1, type: 'stairs' },
         ],
@@ -38,7 +40,7 @@ export const floorTemplates: { name: string; description: string; floors: Floor[
           { x1: 500, y1: 100, x2: 500, y2: 600 },
         ],
         doors: [
-          { x: 500, y: 350, width: 60, capacity: 2, orientation: 'vertical' },
+          { id: 'door-4', x: 500, y: 350, width: 60, capacity: 2, orientation: 'vertical', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
         ],
         exits: [
           { x: 180, y: 200, floor: 2, type: 'stairs' },
@@ -64,14 +66,14 @@ export const floorTemplates: { name: string; description: string; floors: Floor[
           { x1: 350, y1: 500, x2: 650, y2: 500 },
         ],
         doors: [
-          { x: 500, y: 200, width: 80, capacity: 3, orientation: 'horizontal' },
-          { x: 500, y: 500, width: 80, capacity: 3, orientation: 'horizontal' },
+          { id: 'door-5', x: 500, y: 200, width: 80, capacity: 3, orientation: 'horizontal', throughput: 1.5, direction: 'both', autoOpen: false, currentQueue: 0 },
+          { id: 'door-6', x: 500, y: 500, width: 80, capacity: 3, orientation: 'horizontal', throughput: 1.5, direction: 'both', autoOpen: false, currentQueue: 0 },
         ],
         exits: [
-          { x: 500, y: 30, floor: 1, type: 'exit' },
-          { x: 970, y: 350, floor: 1, type: 'exit' },
-          { x: 500, y: 670, floor: 1, type: 'exit' },
-          { x: 30, y: 350, floor: 1, type: 'exit' },
+          { x: 500, y: 20, floor: 1, type: 'exit' },
+          { x: 980, y: 350, floor: 1, type: 'exit' },
+          { x: 500, y: 680, floor: 1, type: 'exit' },
+          { x: 20, y: 350, floor: 1, type: 'exit' },
         ],
       },
     ],
@@ -93,14 +95,14 @@ export const floorTemplates: { name: string; description: string; floors: Floor[
           { x1: 600, y1: 400, x2: 900, y2: 400 },
         ],
         doors: [
-          { x: 200, y: 300, width: 60, capacity: 2, orientation: 'horizontal' },
-          { x: 700, y: 300, width: 60, capacity: 2, orientation: 'horizontal' },
-          { x: 200, y: 400, width: 60, capacity: 2, orientation: 'horizontal' },
-          { x: 700, y: 400, width: 60, capacity: 2, orientation: 'horizontal' },
+          { id: 'door-7', x: 200, y: 300, width: 60, capacity: 2, orientation: 'horizontal', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
+          { id: 'door-8', x: 700, y: 300, width: 60, capacity: 2, orientation: 'horizontal', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
+          { id: 'door-9', x: 200, y: 400, width: 60, capacity: 2, orientation: 'horizontal', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
+          { id: 'door-10', x: 700, y: 400, width: 60, capacity: 2, orientation: 'horizontal', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
         ],
         exits: [
-          { x: 500, y: 80, floor: 1, type: 'exit' },
-          { x: 500, y: 620, floor: 1, type: 'exit' },
+          { x: 500, y: 70, floor: 1, type: 'exit' },
+          { x: 500, y: 630, floor: 1, type: 'exit' },
           { x: 150, y: 500, floor: 1, type: 'stairs' },
           { x: 850, y: 500, floor: 1, type: 'stairs' },
         ],
@@ -116,8 +118,8 @@ export const floorTemplates: { name: string; description: string; floors: Floor[
           { x1: 600, y1: 300, x2: 900, y2: 300 },
         ],
         doors: [
-          { x: 200, y: 300, width: 60, capacity: 2, orientation: 'horizontal' },
-          { x: 700, y: 300, width: 60, capacity: 2, orientation: 'horizontal' },
+          { id: 'door-11', x: 200, y: 300, width: 60, capacity: 2, orientation: 'horizontal', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
+          { id: 'door-12', x: 700, y: 300, width: 60, capacity: 2, orientation: 'horizontal', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
         ],
         exits: [
           { x: 150, y: 500, floor: 2, type: 'stairs' },
@@ -134,7 +136,7 @@ export const floorTemplates: { name: string; description: string; floors: Floor[
           { x1: 500, y1: 100, x2: 500, y2: 300 },
         ],
         doors: [
-          { x: 500, y: 300, width: 60, capacity: 2, orientation: 'vertical' },
+          { id: 'door-13', x: 500, y: 300, width: 60, capacity: 2, orientation: 'vertical', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
         ],
         exits: [
           { x: 150, y: 500, floor: 3, type: 'stairs' },
@@ -161,7 +163,7 @@ export const floorTemplates: { name: string; description: string; floors: Floor[
         ],
         doors: [],
         exits: [
-          { x: 500, y: 180, floor: 1, type: 'exit' },
+          { x: 500, y: 170, floor: 1, type: 'exit' },
         ],
       },
     ],
@@ -181,13 +183,13 @@ export const floorTemplates: { name: string; description: string; floors: Floor[
           { x1: 600, y1: 150, x2: 600, y2: 250 },
         ],
         doors: [
-          { x: 400, y: 250, width: 60, capacity: 2, orientation: 'vertical' },
-          { x: 600, y: 250, width: 60, capacity: 2, orientation: 'vertical' },
+          { id: 'door-14', x: 400, y: 250, width: 60, capacity: 2, orientation: 'vertical', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
+          { id: 'door-15', x: 600, y: 250, width: 60, capacity: 2, orientation: 'vertical', throughput: 1.2, direction: 'both', autoOpen: false, currentQueue: 0 },
         ],
         exits: [
-          { x: 130, y: 350, floor: 1, type: 'exit' },
-          { x: 870, y: 350, floor: 1, type: 'exit' },
-          { x: 500, y: 130, floor: 1, type: 'exit' },
+          { x: 120, y: 350, floor: 1, type: 'exit' },
+          { x: 880, y: 350, floor: 1, type: 'exit' },
+          { x: 500, y: 120, floor: 1, type: 'exit' },
         ],
       },
     ],

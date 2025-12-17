@@ -114,7 +114,17 @@ const isWallBlocking = (
 ): boolean => {
   for (const wall of floor.walls) {
     if (lineSegmentIntersect(x1, y1, x2, y2, wall.x1, wall.y1, wall.x2, wall.y2)) {
-      return true;
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2;
+      
+      const nearDoor = floor.doors.some(door => {
+        const dist = Math.hypot(door.x - midX, door.y - midY);
+        return dist < door.width / 2 + 40;
+      });
+      
+      if (!nearDoor) {
+        return true;
+      }
     }
   }
   return false;
@@ -158,8 +168,20 @@ export const checkWallCollision = (
   newY: number,
   floor: Floor
 ): { x: number; y: number } => {
+  const midX = (x + newX) / 2;
+  const midY = (y + newY) / 2;
+  
+  const nearDoor = floor.doors.some(door => {
+    const dist = Math.hypot(door.x - midX, door.y - midY);
+    return dist < door.width / 2 + 40;
+  });
+  
+  if (nearDoor) {
+    return { x: newX, y: newY };
+  }
+  
   for (const wall of floor.walls) {
-    if (isWallBlocking(x, y, newX, newY, floor)) {
+    if (lineSegmentIntersect(x, y, newX, newY, wall.x1, wall.y1, wall.x2, wall.y2)) {
       const wallVector = { x: wall.x2 - wall.x1, y: wall.y2 - wall.y1 };
       const wallLength = Math.sqrt(wallVector.x ** 2 + wallVector.y ** 2);
       const wallNormal = { x: -wallVector.y / wallLength, y: wallVector.x / wallLength };

@@ -28,7 +28,10 @@ interface SimPerson extends Person {
   evacuationTime?: number;
   path?: { x: number; y: number }[];
   pathIndex?: number;
+  reachedAssembly?: boolean;
 }
+
+const ASSEMBLY_POINT = { x: 500, y: 30 };
 
 const SimulationPanel = ({
   floors,
@@ -120,7 +123,23 @@ const SimulationPanel = ({
 
     setSimPeople(prevPeople => {
       const updated = prevPeople.map(person => {
-        if (person.evacuated) return person;
+        if (person.evacuated && person.reachedAssembly) return person;
+        
+        if (person.evacuated && !person.reachedAssembly) {
+          const dx = ASSEMBLY_POINT.x - person.x;
+          const dy = ASSEMBLY_POINT.y - person.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < 20) {
+            return { ...person, reachedAssembly: true };
+          }
+          
+          const speed = 2 * simSpeed;
+          const newX = person.x + (dx / distance) * speed;
+          const newY = person.y + (dy / distance) * speed;
+          
+          return { ...person, x: newX, y: newY };
+        }
 
         const currentFloor = floors.find(f => f.id === person.floor);
         if (!currentFloor) return person;
@@ -144,7 +163,6 @@ const SimulationPanel = ({
 
         if (distance < 30) {
           if (nearestExit.type === 'exit') {
-            setEvacuatedCount(prev => prev + 1);
             return { ...person, evacuated: true, evacuationTime: simTime };
           } else if (nearestExit.type === 'stairs' && person.floor > 1) {
             const lowerFloor = floors.find(f => f.id === person.floor - 1);
@@ -260,8 +278,10 @@ const SimulationPanel = ({
         };
       });
 
-      const evacuated = updated.filter(p => p.evacuated).length;
-      if (evacuated === people.length) {
+      const reachedAssembly = updated.filter(p => p.reachedAssembly).length;
+      setEvacuatedCount(reachedAssembly);
+      
+      if (reachedAssembly === people.length) {
         handleSimulationComplete(updated);
       }
 
@@ -382,6 +402,21 @@ const SimulationPanel = ({
       ctx.fill();
     });
 
+    if (viewFloor === 1) {
+      ctx.fillStyle = '#10b98180';
+      ctx.beginPath();
+      ctx.arc(ASSEMBLY_POINT.x, ASSEMBLY_POINT.y, 40, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Точка сбора', ASSEMBLY_POINT.x, ASSEMBLY_POINT.y - 50);
+    }
+
     if (showPaths) {
       simPeople.forEach(person => {
         if (!person.evacuated && person.floor === viewFloor && person.path) {
@@ -410,6 +445,16 @@ const SimulationPanel = ({
         ctx.lineWidth = 1;
         ctx.stroke();
       }
+      
+      if (person.evacuated && viewFloor === 1) {
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(person.x, person.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     });
   };
 
@@ -420,7 +465,10 @@ const SimulationPanel = ({
           <div>
             <h2 className="text-xl font-semibold">Симуляция эвакуации</h2>
             <p className="text-sm text-muted-foreground">
-              Время: {simTime.toFixed(1)} сек • Эвакуировано: {evacuatedCount} / {people.length}
+              Время: {simTime.toFixed(1)} сек • В точке сбора: {evacuatedCount} / {people.length}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              🟢 Точка сбора находится за пределами здания
             </p>
           </div>
           <div className="flex gap-2">

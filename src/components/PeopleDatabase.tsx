@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
 import { Person, Floor } from '@/pages/Index';
+import GroupManagement from './GroupManagement';
 
 interface PeopleDatabaseProps {
   people: Person[];
@@ -127,6 +128,8 @@ const PeopleDatabase = ({ people, setPeople, floors }: PeopleDatabaseProps) => {
 
   return (
     <div className="space-y-4">
+      <GroupManagement people={people} onUpdatePeople={setPeople} />
+      
       <Card className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div>

@@ -3,9 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
 import { Floor, Person, SimulationResult } from '@/pages/Index';
+import { calculateOptimalPath, checkWallCollision } from '@/utils/pathfinding';
 
 interface SimulationPanelProps {
   floors: Floor[];
@@ -23,6 +26,8 @@ interface SimPerson extends Person {
   vy: number;
   evacuated: boolean;
   evacuationTime?: number;
+  path?: { x: number; y: number }[];
+  pathIndex?: number;
 }
 
 const SimulationPanel = ({
@@ -39,6 +44,8 @@ const SimulationPanel = ({
   const [evacuatedCount, setEvacuatedCount] = useState(0);
   const animationRef = useRef<number>();
   const [heatmapData, setHeatmapData] = useState<number[][][]>([]);
+  const [viewFloor, setViewFloor] = useState(1);
+  const [showPaths, setShowPaths] = useState(true);
 
   useEffect(() => {
     if (isSimulating) {
@@ -62,15 +69,33 @@ const SimulationPanel = ({
   }, [simPeople, simTime, isSimulating]);
 
   const initializeSimulation = () => {
-    const initialized: SimPerson[] = people.map(p => ({
-      ...p,
-      x: p.position?.x || 100 + Math.random() * 700,
-      y: p.position?.y || 100 + Math.random() * 500,
-      floor: p.position?.floor || 1,
-      vx: 0,
-      vy: 0,
-      evacuated: false,
-    }));
+    const initialized: SimPerson[] = people.map(p => {
+      const floor = floors.find(f => f.id === (p.position?.floor || 1));
+      const x = p.position?.x || 100 + Math.random() * 700;
+      const y = p.position?.y || 100 + Math.random() * 500;
+      
+      let path: { x: number; y: number }[] = [];
+      if (floor && floor.exits.length > 0) {
+        const nearestExit = floor.exits.reduce((closest, exit) => {
+          const dist = Math.hypot(exit.x - x, exit.y - y);
+          const closestDist = Math.hypot(closest.x - x, closest.y - y);
+          return dist < closestDist ? exit : closest;
+        });
+        path = calculateOptimalPath({ x, y }, nearestExit, floor);
+      }
+
+      return {
+        ...p,
+        x,
+        y,
+        floor: p.position?.floor || 1,
+        vx: 0,
+        vy: 0,
+        evacuated: false,
+        path,
+        pathIndex: 0,
+      };
+    });
 
     setSimPeople(initialized);
     setSimTime(0);
@@ -124,17 +149,49 @@ const SimulationPanel = ({
           } else if (nearestExit.type === 'stairs' && person.floor > 1) {
             const lowerFloor = floors.find(f => f.id === person.floor - 1);
             if (lowerFloor && lowerFloor.exits.length > 0) {
-              return { ...person, floor: person.floor - 1, x: nearestExit.x, y: nearestExit.y };
+              const newPath = calculateOptimalPath(
+                { x: nearestExit.x, y: nearestExit.y },
+                lowerFloor.exits[0],
+                lowerFloor
+              );
+              return {
+                ...person,
+                floor: person.floor - 1,
+                x: nearestExit.x,
+                y: nearestExit.y,
+                path: newPath,
+                pathIndex: 0,
+              };
             }
           }
         }
+
+        let targetX = nearestExit.x;
+        let targetY = nearestExit.y;
+
+        if (person.path && person.path.length > 0 && person.pathIndex !== undefined) {
+          if (person.pathIndex < person.path.length) {
+            const target = person.path[person.pathIndex];
+            targetX = target.x;
+            targetY = target.y;
+
+            const distToTarget = Math.hypot(target.x - person.x, target.y - person.y);
+            if (distToTarget < 25) {
+              person.pathIndex++;
+            }
+          }
+        }
+
+        const pathDx = targetX - person.x;
+        const pathDy = targetY - person.y;
+        const pathDist = Math.sqrt(pathDx * pathDx + pathDy * pathDy);
 
         const baseSpeed = 2 * (person.mobility / 100) * simSpeed;
         const panicFactor = 1 + (person.panicLevel / 100) * 0.5;
         const speed = baseSpeed * panicFactor;
 
-        let fx = (dx / distance) * speed;
-        let fy = (dy / distance) * speed;
+        let fx = (pathDx / pathDist) * speed;
+        let fy = (pathDy / pathDist) * speed;
 
         const crowdForce = { x: 0, y: 0 };
         let nearbyCount = 0;
@@ -187,8 +244,12 @@ const SimulationPanel = ({
         const newVx = person.vx * 0.8 + fx * 0.2;
         const newVy = person.vy * 0.8 + fy * 0.2;
 
-        const newX = Math.max(10, Math.min(990, person.x + newVx));
-        const newY = Math.max(10, Math.min(690, person.y + newVy));
+        let newX = person.x + newVx;
+        let newY = person.y + newVy;
+
+        const correctedPos = checkWallCollision(person.x, person.y, newX, newY, currentFloor);
+        newX = Math.max(10, Math.min(990, correctedPos.x));
+        newY = Math.max(10, Math.min(690, correctedPos.y));
 
         return {
           ...person,
@@ -265,7 +326,7 @@ const SimulationPanel = ({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const currentFloor = floors.find(f => f.id === 1);
+    const currentFloor = floors.find(f => f.id === viewFloor);
     if (!currentFloor) return;
 
     ctx.strokeStyle = '#2a3441';
@@ -283,8 +344,9 @@ const SimulationPanel = ({
       ctx.stroke();
     }
 
-    if (heatmapData[0]) {
-      heatmapData[0].forEach((row, i) => {
+    const floorHeatmap = heatmapData[viewFloor - 1];
+    if (floorHeatmap) {
+      floorHeatmap.forEach((row, i) => {
         row.forEach((density, j) => {
           if (density > 0) {
             const alpha = Math.min(density / 100, 0.6);
@@ -320,8 +382,25 @@ const SimulationPanel = ({
       ctx.fill();
     });
 
+    if (showPaths) {
+      simPeople.forEach(person => {
+        if (!person.evacuated && person.floor === viewFloor && person.path) {
+          ctx.strokeStyle = '#8B5CF640';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath();
+          ctx.moveTo(person.x, person.y);
+          person.path.forEach(point => {
+            ctx.lineTo(point.x, point.y);
+          });
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      });
+    }
+
     simPeople.forEach(person => {
-      if (!person.evacuated && person.floor === 1) {
+      if (!person.evacuated && person.floor === viewFloor) {
         const panicColor = person.panicLevel > 70 ? '#ef4444' : person.panicLevel > 40 ? '#f59e0b' : '#10b981';
         ctx.fillStyle = panicColor;
         ctx.beginPath();
@@ -365,16 +444,45 @@ const SimulationPanel = ({
           </div>
         </div>
 
-        <div className="mb-4">
-          <Label>Скорость симуляции: {simSpeed}x</Label>
-          <Slider
-            value={[simSpeed]}
-            onValueChange={([v]) => setSimSpeed(v)}
-            min={0.5}
-            max={5}
-            step={0.5}
-            className="mt-2"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <Label>Этаж для просмотра</Label>
+            <Select value={viewFloor.toString()} onValueChange={(v) => setViewFloor(parseInt(v))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {floors.map(f => (
+                  <SelectItem key={f.id} value={f.id.toString()}>
+                    Этаж {f.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Скорость симуляции: {simSpeed}x</Label>
+            <Slider
+              value={[simSpeed]}
+              onValueChange={([v]) => setSimSpeed(v)}
+              min={0.5}
+              max={5}
+              step={0.5}
+              className="mt-2"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="show-paths"
+              checked={showPaths}
+              onCheckedChange={setShowPaths}
+            />
+            <Label htmlFor="show-paths" className="cursor-pointer">
+              Показывать пути эвакуации
+            </Label>
+          </div>
         </div>
 
         <canvas
